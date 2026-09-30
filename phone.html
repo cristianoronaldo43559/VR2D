@@ -1,155 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<meta
+name="viewport"
+content="width=device-width,initial-scale=1.0"
+>
 
 <title>Phone Motion Controller</title>
 
 <style>
-    * {
-        box-sizing: border-box;
-    }
 
-    body {
-        margin: 0;
-        background: #080d18;
-        color: white;
-        font-family: Arial, sans-serif;
-        text-align: center;
-    }
+body{
 
-    .container {
-        width: 100%;
-        max-width: 700px;
-        margin: auto;
-        padding: 18px;
-    }
+    margin:0;
 
-    h1 {
-        margin-bottom: 5px;
-    }
+    background:#080d18;
 
-    input,
-    button {
-        padding: 13px;
-        margin: 5px;
-        border: none;
-        border-radius: 10px;
-        font-size: 17px;
-    }
+    color:white;
 
-    input {
-        width: 220px;
-    }
+    font-family:Arial,sans-serif;
 
-    button {
-        background: #35d07f;
-        color: #06130b;
-        font-weight: bold;
-        cursor: pointer;
-    }
+    text-align:center;
 
-    #calibrate {
-        background: #3b82f6;
-        color: white;
-    }
+}
 
-    video {
-        width: 100%;
-        max-width: 640px;
-        margin-top: 15px;
-        border-radius: 16px;
+.container{
 
-        /* Mirror the front camera */
-        transform: scaleX(-1);
+    max-width:700px;
 
-        background: black;
-    }
+    margin:auto;
 
-    #status {
-        background: #18213b;
-        padding: 12px;
-        border-radius: 10px;
-        margin-top: 10px;
-    }
+    padding:18px;
 
-    #movement {
-        font-size: 32px;
-        font-weight: bold;
-        margin: 12px;
-    }
+}
 
-    #debug {
-        background: #111a2d;
-        padding: 10px;
-        border-radius: 10px;
-        font-size: 14px;
-        color: #b8c5df;
-    }
+input,button{
 
-    .instructions {
-        color: #aeb8d0;
-        line-height: 1.5;
-    }
+    padding:13px;
+
+    margin:5px;
+
+    border:none;
+
+    border-radius:10px;
+
+    font-size:17px;
+
+}
+
+input{
+
+    width:220px;
+
+}
+
+button{
+
+    background:#35d07f;
+
+    font-weight:bold;
+
+}
+
+#calibrate{
+
+    background:#3b82f6;
+
+    color:white;
+
+}
+
+video{
+
+    width:100%;
+
+    max-width:640px;
+
+    margin-top:15px;
+
+    border-radius:16px;
+
+    transform:scaleX(-1);
+
+    background:black;
+
+}
+
+#status{
+
+    background:#18213b;
+
+    padding:12px;
+
+    border-radius:10px;
+
+    margin-top:10px;
+
+}
+
+#movement{
+
+    font-size:40px;
+
+    font-weight:bold;
+
+    margin:15px;
+
+}
+
+#debug{
+
+    background:#111a2d;
+
+    padding:12px;
+
+    border-radius:10px;
+
+    font-size:16px;
+
+    line-height:1.6;
+
+}
+
 </style>
+
 </head>
 
 <body>
 
 <div class="container">
 
-    <h1>📱 Motion Controller</h1>
+<h1>📱 Motion Controller</h1>
 
-    <p>Enter the code shown on your PC.</p>
+<p>Enter the PC code:</p>
 
-    <input
-        id="pcCode"
-        type="text"
-        placeholder="PC code"
-    >
+<input
+id="pcCode"
+placeholder="PC code"
+>
 
-    <button id="connect">
-        Connect
-    </button>
+<button id="connect">
+CONNECT
+</button>
 
-    <br>
+<br>
 
-    <button id="calibrate">
-        📍 Calibrate
-    </button>
+<button id="calibrate">
+📍 CALIBRATE
+</button>
 
-    <div id="status">
-        Starting camera...
-    </div>
+<div id="status">
+Starting...
+</div>
 
-    <div id="movement">
-        WAITING
-    </div>
+<div id="movement">
+WAITING
+</div>
 
-    <div id="debug">
-        Body: waiting for detection...
-    </div>
+<div id="debug">
+Body: waiting...
+</div>
 
-    <video
-        id="camera"
-        autoplay
-        playsinline
-        muted
-    ></video>
+<video
+id="camera"
+autoplay
+playsinline
+muted
+></video>
 
-    <p class="instructions">
-        Stand normally and press <b>Calibrate</b>.<br>
-        Then move your body left/right, jump or crouch.
-    </p>
+<p>
+
+Stand in the middle.<br>
+
+Move your whole body LEFT or RIGHT.
+
+</p>
 
 </div>
 
 
-<!-- PEERJS -->
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 
-<!-- MEDIAPIPE -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
@@ -157,307 +192,164 @@
 
 <script>
 
-/* =====================================================
-   BASIC VARIABLES
-===================================================== */
 
-const video = document.getElementById("camera");
+// ========================================
+// ELEMENTS
+// ========================================
 
-const statusText =
-    document.getElementById("status");
+const video=
+document.getElementById("camera");
 
-const movementText =
-    document.getElementById("movement");
+const statusText=
+document.getElementById("status");
 
-const debugText =
-    document.getElementById("debug");
+const movementText=
+document.getElementById("movement");
 
-const pcCodeInput =
-    document.getElementById("pcCode");
+const debugText=
+document.getElementById("debug");
 
-const connectButton =
-    document.getElementById("connect");
+const pcCodeInput=
+document.getElementById("pcCode");
 
-const calibrateButton =
-    document.getElementById("calibrate");
+const connectButton=
+document.getElementById("connect");
 
-
-/* =====================================================
-   CONNECTION
-===================================================== */
-
-let connection = null;
+const calibrateButton=
+document.getElementById("calibrate");
 
 
-/*
-   Create a unique phone ID.
-*/
+// ========================================
+// PEER
+// ========================================
 
-const phoneID =
-    "phone-" +
-    Math.random()
-        .toString(36)
-        .substring(2, 9);
+const peer=new Peer(
+    "phone-"+Math.random().toString(36).substring(2,9)
+);
 
-
-const peer = new Peer(phoneID);
+let connection=null;
 
 
-/*
-   Peer ready
-*/
+peer.on("open",function(){
 
-peer.on("open", function(id) {
-
-    console.log("Phone ID:", id);
-
-    statusText.textContent =
-        "📱 Camera ready — enter PC code";
+    statusText.textContent=
+        "📷 Camera ready";
 
 });
 
 
-/*
-   Connection error
-*/
-
-peer.on("error", function(error) {
+peer.on("error",function(error){
 
     console.log(error);
 
-    statusText.textContent =
-        "❌ Connection error";
+    statusText.textContent=
+        "❌ Peer error";
 
 });
 
 
-/* =====================================================
-   CONNECT BUTTON
-===================================================== */
+// ========================================
+// CONNECT
+// ========================================
 
-connectButton.addEventListener(
-    "click",
-    function() {
+connectButton.onclick=function(){
 
-        const pcCode =
-            pcCodeInput.value.trim();
+    const code=
+        pcCodeInput.value.trim();
 
-        if (!pcCode) {
+    if(!code){
 
-            statusText.textContent =
-                "⚠️ Enter the PC code";
-
-            return;
-        }
-
-
-        statusText.textContent =
-            "Connecting...";
-
-
-        connection =
-            peer.connect(pcCode);
-
-
-        connection.on(
-            "open",
-            function() {
-
-                statusText.textContent =
-                    "✅ PHONE CONNECTED";
-
-            }
-        );
-
-
-        connection.on(
-            "close",
-            function() {
-
-                statusText.textContent =
-                    "Phone disconnected";
-
-            }
-        );
-
-
-        connection.on(
-            "error",
-            function() {
-
-                statusText.textContent =
-                    "❌ Connection failed";
-
-            }
-        );
-
-    }
-);
-
-
-/* =====================================================
-   SEND COMMAND TO PC
-===================================================== */
-
-let lastCommand = "";
-
-let lastCommandTime = 0;
-
-
-function sendCommand(command) {
-
-    if (!connection ||
-        !connection.open) {
-
-        return;
-    }
-
-
-    const now =
-        performance.now();
-
-
-    /*
-       Don't spam identical commands
-    */
-
-    if (
-        command === lastCommand &&
-        now - lastCommandTime < 100
-    ) {
+        statusText.textContent=
+            "⚠️ Enter PC code";
 
         return;
 
     }
+
+
+    statusText.textContent=
+        "Connecting...";
+
+
+    connection=peer.connect(code);
+
+
+    connection.on("open",function(){
+
+        statusText.textContent=
+            "🟢 PHONE CONNECTED";
+
+        sendCommand("CENTER");
+
+    });
+
+
+    connection.on("close",function(){
+
+        statusText.textContent=
+            "🔴 Disconnected";
+
+    });
+
+
+    connection.on("error",function(error){
+
+        console.log(error);
+
+        statusText.textContent=
+            "❌ Connection failed";
+
+    });
+
+};
+
+
+// ========================================
+// SEND COMMAND
+// ========================================
+
+let lastCommand="";
+
+function sendCommand(command){
+
+    if(!connection)
+        return;
+
+    if(!connection.open)
+        return;
 
 
     connection.send(command);
 
 
-    lastCommand =
-        command;
+    lastCommand=command;
 
-    lastCommandTime =
-        now;
-
-
-    movementText.textContent =
+    movementText.textContent=
         command;
 
 }
 
 
-/* =====================================================
-   CALIBRATION
-===================================================== */
+// ========================================
+// CALIBRATION
+// ========================================
 
-let calibrated = false;
+let calibrated=false;
 
-let centerX = null;
+let centerX=0;
 
-let centerY = null;
+let centerY=0;
 
+let latestX=null;
 
-calibrateButton.addEventListener(
-    "click",
-    function() {
-
-        if (
-            latestBodyX === null ||
-            latestHipY === null
-        ) {
-
-            statusText.textContent =
-                "❌ Body not detected yet";
-
-            return;
-        }
+let latestY=null;
 
 
-        centerX =
-            latestBodyX;
+calibrateButton.onclick=function(){
 
-        centerY =
-            latestHipY;
+    if(latestX===null){
 
-
-        calibrated = true;
-
-
-        statusText.textContent =
-            "✅ Calibrated! Now move.";
-
-
-        sendCommand("CENTER");
-
-    }
-);
-
-
-/* =====================================================
-   BODY VARIABLES
-===================================================== */
-
-let latestBodyX = null;
-
-let latestHipY = null;
-
-let previousHipY = null;
-
-let actionCooldown = 0;
-
-
-/* =====================================================
-   MEDIAPIPE POSE
-===================================================== */
-
-const pose =
-    new Pose({
-
-        locateFile: function(file) {
-
-            return (
-                "https://cdn.jsdelivr.net/npm/@mediapipe/pose/" +
-                file
-            );
-
-        }
-
-    });
-
-
-pose.setOptions({
-
-    modelComplexity: 1,
-
-    smoothLandmarks: true,
-
-    enableSegmentation: false,
-
-    minDetectionConfidence: 0.5,
-
-    minTrackingConfidence: 0.5
-
-});
-
-
-/* =====================================================
-   POSE RESULTS
-===================================================== */
-
-pose.onResults(function(results) {
-
-    const landmarks =
-        results.poseLandmarks;
-
-
-    /*
-       No body detected
-    */
-
-    if (!landmarks) {
-
-        debugText.textContent =
+        statusText.textContent=
             "❌ Body not detected";
 
         return;
@@ -465,304 +357,262 @@ pose.onResults(function(results) {
     }
 
 
-    /*
-       Important body points
+    centerX=latestX;
 
-       11 = left shoulder
-       12 = right shoulder
-       23 = left hip
-       24 = right hip
-    */
+    centerY=latestY;
 
-    const leftShoulder =
-        landmarks[11];
-
-    const rightShoulder =
-        landmarks[12];
-
-    const leftHip =
-        landmarks[23];
-
-    const rightHip =
-        landmarks[24];
+    calibrated=true;
 
 
-    if (
-        !leftShoulder ||
-        !rightShoulder ||
-        !leftHip ||
-        !rightHip
-    ) {
+    statusText.textContent=
+        "🟢 CALIBRATED — MOVE!";
 
-        return;
+    sendCommand("CENTER");
+
+};
+
+
+// ========================================
+// MEDIAPIPE
+// ========================================
+
+const pose=new Pose({
+
+    locateFile:function(file){
+
+        return
+        "https://cdn.jsdelivr.net/npm/@mediapipe/pose/"
+        +file;
 
     }
-
-
-    /*
-       Calculate body center
-    */
-
-    const bodyX =
-        (
-            leftShoulder.x +
-            rightShoulder.x +
-            leftHip.x +
-            rightHip.x
-        ) / 4;
-
-
-    /*
-       Hip height
-    */
-
-    const hipY =
-        (
-            leftHip.y +
-            rightHip.y
-        ) / 2;
-
-
-    latestBodyX =
-        bodyX;
-
-    latestHipY =
-        hipY;
-
-
-    /*
-       Debug information
-    */
-
-    debugText.textContent =
-        "✅ BODY DETECTED | X: " +
-        bodyX.toFixed(2) +
-        " | Y: " +
-        hipY.toFixed(2);
-
-
-    /*
-       Need calibration
-    */
-
-    if (!calibrated) {
-
-        movementText.textContent =
-            "PRESS CALIBRATE";
-
-        previousHipY =
-            hipY;
-
-        return;
-
-    }
-
-
-    const horizontalMovement =
-        bodyX - centerX;
-
-
-    const verticalMovement =
-        hipY - centerY;
-
-
-    const jumpMovement =
-        hipY - previousHipY;
-
-
-    const now =
-        performance.now();
-
-
-    /* =================================================
-       ACTION COOLDOWN
-    ================================================= */
-
-    if (now < actionCooldown) {
-
-        previousHipY =
-            hipY;
-
-        return;
-
-    }
-
-
-    /* =================================================
-       JUMP
-    ================================================= */
-
-    /*
-       Smaller Y = body moved upward
-    */
-
-    if (
-        jumpMovement < -0.015 &&
-        verticalMovement < -0.04
-    ) {
-
-        sendCommand("JUMP");
-
-        actionCooldown =
-            now + 600;
-
-
-        previousHipY =
-            hipY;
-
-        return;
-
-    }
-
-
-    /* =================================================
-       CROUCH
-    ================================================= */
-
-    /*
-       Larger Y = body moved downward
-    */
-
-    if (
-        verticalMovement > 0.10
-    ) {
-
-        sendCommand("CROUCH");
-
-        actionCooldown =
-            now + 500;
-
-
-        previousHipY =
-            hipY;
-
-        return;
-
-    }
-
-
-    /* =================================================
-       MOVE LEFT
-    ================================================= */
-
-    if (
-        horizontalMovement < -0.10
-    ) {
-
-        sendCommand("LEFT");
-
-    }
-
-
-    /* =================================================
-       MOVE RIGHT
-    ================================================= */
-
-    else if (
-        horizontalMovement > 0.10
-    ) {
-
-        sendCommand("RIGHT");
-
-    }
-
-
-    /* =================================================
-       CENTER
-    ================================================= */
-
-    else {
-
-        sendCommand("CENTER");
-
-    }
-
-
-    previousHipY =
-        hipY;
 
 });
 
 
-/* =====================================================
-   CAMERA
-===================================================== */
+pose.setOptions({
 
-navigator.mediaDevices
-    .getUserMedia({
+    modelComplexity:1,
 
-        video: {
+    smoothLandmarks:true,
 
-            facingMode: "user",
+    enableSegmentation:false,
 
-            width: {
-                ideal: 640
-            },
+    minDetectionConfidence:0.5,
 
-            height: {
-                ideal: 480
-            }
+    minTrackingConfidence:0.5
+
+});
+
+
+let lastSend=0;
+
+
+pose.onResults(function(results){
+
+    const landmarks=
+        results.poseLandmarks;
+
+
+    if(!landmarks){
+
+        debugText.innerHTML=
+            "❌ BODY NOT DETECTED";
+
+        return;
+
+    }
+
+
+    // shoulders
+    const leftShoulder=
+        landmarks[11];
+
+    const rightShoulder=
+        landmarks[12];
+
+
+    // hips
+    const leftHip=
+        landmarks[23];
+
+    const rightHip=
+        landmarks[24];
+
+
+    if(
+        !leftShoulder ||
+        !rightShoulder ||
+        !leftHip ||
+        !rightHip
+    ){
+
+        return;
+
+    }
+
+
+    // BODY CENTER
+    const bodyX=
+        (
+            leftShoulder.x+
+            rightShoulder.x+
+            leftHip.x+
+            rightHip.x
+        )/4;
+
+
+    const bodyY=
+        (
+            leftHip.y+
+            rightHip.y
+        )/2;
+
+
+    latestX=bodyX;
+
+    latestY=bodyY;
+
+
+    debugText.innerHTML=
+
+        "✅ BODY DETECTED<br>"+
+        "X: "+bodyX.toFixed(3)+
+        "<br>"+
+        "Y: "+bodyY.toFixed(3)+
+        "<br>"+
+        "Center X: "+centerX.toFixed(3);
+
+
+    if(!calibrated){
+
+        movementText.textContent=
+            "CALIBRATE";
+
+        return;
+
+    }
+
+
+    const difference=
+        bodyX-centerX;
+
+
+    // ==================================
+    // MOVEMENT
+    // ==================================
+
+    let command="CENTER";
+
+
+    // IMPORTANT:
+    // Camera image is mirrored visually,
+    // so these are intentionally reversed.
+
+    if(difference>0.07){
+
+        command="LEFT";
+
+    }
+
+    else if(difference<-0.07){
+
+        command="RIGHT";
+
+    }
+
+    else{
+
+        command="CENTER";
+
+    }
+
+
+    // Don't spam too quickly
+
+    const now=performance.now();
+
+
+    if(
+        command!==lastCommand ||
+        now-lastSend>150
+    ){
+
+        sendCommand(command);
+
+        lastSend=now;
+
+    }
+
+});
+
+
+// ========================================
+// CAMERA
+// ========================================
+
+navigator.mediaDevices.getUserMedia({
+
+    video:{
+
+        facingMode:"user",
+
+        width:{
+            ideal:640
+        },
+
+        height:{
+            ideal:480
+        }
+
+    },
+
+    audio:false
+
+})
+
+.then(function(stream){
+
+    video.srcObject=stream;
+
+
+    const camera=new Camera(video,{
+
+        onFrame:async function(){
+
+            await pose.send({
+                image:video
+            });
 
         },
 
-        audio: false
+        width:640,
 
-    })
-
-    .then(function(stream) {
-
-        video.srcObject =
-            stream;
-
-
-        /*
-           MediaPipe camera loop
-        */
-
-        const camera =
-            new Camera(
-
-                video,
-
-                {
-
-                    onFrame:
-                        async function() {
-
-                            await pose.send({
-                                image: video
-                            });
-
-                        },
-
-                    width: 640,
-
-                    height: 480
-
-                }
-
-            );
-
-
-        camera.start();
-
-
-        statusText.textContent =
-            "📷 Camera running — connect to PC";
-
-    })
-
-
-    .catch(function(error) {
-
-        console.log(error);
-
-        statusText.textContent =
-            "❌ Camera blocked. Allow camera permission.";
+        height:480
 
     });
+
+
+    camera.start();
+
+
+    statusText.textContent=
+        "📷 Camera running";
+
+
+})
+
+.catch(function(error){
+
+    console.log(error);
+
+    statusText.textContent=
+        "❌ Camera permission denied";
+
+});
+
 
 </script>
 
 </body>
+
 </html>
