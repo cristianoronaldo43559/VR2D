@@ -2,150 +2,563 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Camera Runner PC</title>
+
 <style>
-body{margin:0;background:#080b12;color:white;font-family:Arial;text-align:center}
-.wrap{max-width:900px;margin:auto;padding:18px}
-#game{width:100%;max-width:850px;border-radius:18px;background:#151b27;display:block;margin:15px auto}
-#code{font-size:24px;font-weight:bold;letter-spacing:3px;background:#18213b;padding:10px;border-radius:10px;display:inline-block}
-#status{margin:8px}
+body{
+    margin:0;
+    background:#080b12;
+    color:white;
+    font-family:Arial,sans-serif;
+    text-align:center;
+}
+
+.container{
+    max-width:900px;
+    margin:auto;
+    padding:20px;
+}
+
+#code{
+    display:inline-block;
+    padding:12px 20px;
+    background:#18213b;
+    border-radius:12px;
+    font-size:25px;
+    font-weight:bold;
+    letter-spacing:3px;
+}
+
+#status{
+    margin:12px;
+    font-size:18px;
+}
+
+#command{
+    margin:10px auto;
+    padding:15px;
+    max-width:500px;
+    background:#111a2d;
+    border-radius:12px;
+    font-size:25px;
+    font-weight:bold;
+}
+
+canvas{
+    width:100%;
+    max-width:850px;
+    background:#101827;
+    border-radius:18px;
+    margin-top:10px;
+}
 </style>
 </head>
+
 <body>
-<div class="wrap">
+
+<div class="container">
+
 <h1>🏃 Camera Runner</h1>
-<div>Your phone connection code:</div>
+
+<p>Enter this code on your phone:</p>
+
 <div id="code">CONNECTING...</div>
+
 <div id="status">Waiting for phone...</div>
+
+<div id="command">
+COMMAND RECEIVED: NONE
+</div>
+
 <canvas id="game" width="850" height="450"></canvas>
-<p>Keyboard fallback: ← → to move, ↑ to jump, ↓ to crouch</p>
+
+<p>Keyboard: ← → ↑ ↓</p>
+
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script>
-const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
-const status=document.getElementById("status");
-const codeEl=document.getElementById("code");
 
-const peer=new Peer("runner-"+Math.random().toString(36).slice(2,8));
-let conn=null, command="CENTER";
-peer.on("open",id=>{
-  codeEl.textContent=id;
-  status.textContent="Open the phone page and enter this code.";
+<script>
+
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+const codeElement=document.getElementById("code");
+const statusElement=document.getElementById("status");
+const commandElement=document.getElementById("command");
+
+
+// =============================
+// PEER CONNECTION
+// =============================
+
+const peer=new Peer(
+    "runner-"+Math.random().toString(36).substring(2,8)
+);
+
+let connection=null;
+let phoneCommand="CENTER";
+
+
+peer.on("open",function(id){
+
+    codeElement.textContent=id;
+
+    statusElement.textContent=
+        "🟡 Waiting for phone...";
+
 });
-peer.on("connection",c=>{
-  conn=c;
-  status.textContent="✅ Phone connected!";
-  conn.on("data",data=>{command=data;});
-  conn.on("close",()=>status.textContent="Phone disconnected.");
+
+
+peer.on("connection",function(conn){
+
+    connection=conn;
+
+    statusElement.textContent=
+        "🟢 PHONE CONNECTED";
+
+    conn.on("data",function(data){
+
+        console.log("RECEIVED:",data);
+
+        phoneCommand=String(data);
+
+        commandElement.textContent=
+            "COMMAND RECEIVED: "+phoneCommand;
+
+    });
+
+    conn.on("close",function(){
+
+        statusElement.textContent=
+            "🔴 PHONE DISCONNECTED";
+
+    });
+
 });
+
+
+// =============================
+// KEYBOARD
+// =============================
 
 const keys={};
-addEventListener("keydown",e=>keys[e.key]=true);
-addEventListener("keyup",e=>keys[e.key]=false);
 
-const player={x:400,y:350,w:42,h:60,vy:0,onGround:true};
-let obstacles=[],score=0,speed=5,spawn=0,gameOver=false;
+window.addEventListener("keydown",function(e){
 
-function currentCommand(){
-  if(keys.ArrowLeft)return"LEFT";
-  if(keys.ArrowRight)return"RIGHT";
-  if(keys.ArrowUp)return"JUMP";
-  if(keys.ArrowDown)return"CROUCH";
-  return command;
-}
-function reset(){
-  player.x=400;player.y=350;player.vy=0;player.onGround=true;
-  obstacles=[];score=0;speed=5;spawn=0;gameOver=false;command="CENTER";
-}
+    keys[e.key]=true;
+
+});
+
+window.addEventListener("keyup",function(e){
+
+    keys[e.key]=false;
+
+});
+
+
+// =============================
+// PLAYER
+// =============================
+
+const player={
+
+    x:400,
+    y:340,
+    width:45,
+    height:70,
+
+    velocityY:0,
+
+    grounded:true
+
+};
+
+
+// =============================
+// GAME
+// =============================
+
+let obstacles=[];
+let score=0;
+let spawnTimer=0;
+let speed=5;
+let gameOver=false;
+
+
 function jump(){
-  if(player.onGround){player.vy=-13;player.onGround=false;}
-}
-function update(){
-  if(gameOver)return;
-  const c=currentCommand();
-  if(c==="LEFT")player.x-=7;
-  if(c==="RIGHT")player.x+=7;
-  if(c==="JUMP")jump();
 
-  player.x=Math.max(20,Math.min(canvas.width-player.w-20,player.x));
+    if(player.grounded){
 
-  player.vy+=0.65;player.y+=player.vy;
-  if(player.y>=350){player.y=350;player.vy=0;player.onGround=true;}
+        player.velocityY=-14;
 
-  spawn--;
-  if(spawn<=0){
-    obstacles.push({
-      x:canvas.width+20,
-      y:370,
-      w:38+Math.random()*20,
-      h:60,
-      type:Math.random()<0.5?"block":"low"
-    });
-    spawn=65+Math.random()*55;
-  }
+        player.grounded=false;
 
-  for(const o of obstacles)o.x-=speed;
-  obstacles=obstacles.filter(o=>o.x>-100);
-
-  for(const o of obstacles){
-    let ph=player.h, py=player.y;
-    // crouch lowers hitbox
-    if(c==="CROUCH"){ph=35;py=375;}
-    if(player.x<o.x+o.w && player.x+player.w>o.x &&
-       py<o.y+o.h && py+ph>o.y){
-      gameOver=true;
     }
-  }
 
-  score++;
-  speed=Math.min(10,5+score/1200);
 }
+
+
+function resetGame(){
+
+    player.x=400;
+    player.y=340;
+
+    player.velocityY=0;
+
+    player.grounded=true;
+
+    obstacles=[];
+
+    score=0;
+
+    spawnTimer=0;
+
+    speed=5;
+
+    gameOver=false;
+
+    phoneCommand="CENTER";
+
+}
+
+
+function getCommand(){
+
+    if(keys["ArrowLeft"])
+        return "LEFT";
+
+    if(keys["ArrowRight"])
+        return "RIGHT";
+
+    if(keys["ArrowUp"])
+        return "JUMP";
+
+    if(keys["ArrowDown"])
+        return "CROUCH";
+
+    return phoneCommand;
+
+}
+
+
+function update(){
+
+    if(gameOver)
+        return;
+
+
+    const command=getCommand();
+
+
+    // LEFT
+    if(command==="LEFT"){
+
+        player.x-=9;
+
+    }
+
+
+    // RIGHT
+    if(command==="RIGHT"){
+
+        player.x+=9;
+
+    }
+
+
+    // JUMP
+    if(command==="JUMP"){
+
+        jump();
+
+    }
+
+
+    // Keep player inside
+    player.x=Math.max(
+        20,
+        Math.min(
+            canvas.width-player.width-20,
+            player.x
+        )
+    );
+
+
+    // Gravity
+    player.velocityY+=0.7;
+
+    player.y+=player.velocityY;
+
+
+    if(player.y>=340){
+
+        player.y=340;
+
+        player.velocityY=0;
+
+        player.grounded=true;
+
+    }
+
+
+    // Spawn obstacles
+    spawnTimer--;
+
+    if(spawnTimer<=0){
+
+        obstacles.push({
+
+            x:canvas.width+30,
+
+            y:370,
+
+            width:45,
+
+            height:70
+
+        });
+
+        spawnTimer=70+Math.random()*50;
+
+    }
+
+
+    // Move obstacles
+    for(const obstacle of obstacles){
+
+        obstacle.x-=speed;
+
+    }
+
+
+    obstacles=obstacles.filter(
+        obstacle=>obstacle.x>-100
+    );
+
+
+    // Collision
+    for(const obstacle of obstacles){
+
+        if(
+
+            player.x < obstacle.x+obstacle.width &&
+
+            player.x+player.width > obstacle.x &&
+
+            player.y < obstacle.y+obstacle.height &&
+
+            player.y+player.height > obstacle.y
+
+        ){
+
+            gameOver=true;
+
+        }
+
+    }
+
+
+    score++;
+
+    speed=Math.min(
+        10,
+        5+score/1500
+    );
+
+}
+
+
+// =============================
+// DRAW
+// =============================
+
 function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  // sky
-  ctx.fillStyle="#101827";ctx.fillRect(0,0,canvas.width,canvas.height);
-  // ground
-  ctx.fillStyle="#263244";ctx.fillRect(0,410,canvas.width,40);
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
 
-  // road lines
-  ctx.strokeStyle="#53647e";ctx.lineWidth=4;
-  for(let x=0;x<canvas.width;x+=70){
-    ctx.beginPath();ctx.moveTo(x,430);ctx.lineTo(x+35,430);ctx.stroke();
-  }
 
-  // player
-  const c=currentCommand();
-  ctx.fillStyle="#35d07f";
-  if(c==="CROUCH"){
-    ctx.fillRect(player.x,375,50,35);
-    ctx.beginPath();ctx.arc(player.x+35,370,15,0,Math.PI*2);ctx.fill();
-  }else{
-    ctx.fillRect(player.x,player.y,player.w,player.h);
-    ctx.beginPath();ctx.arc(player.x+player.w/2,player.y-12,18,0,Math.PI*2);ctx.fill();
-  }
+    // SKY
+    ctx.fillStyle="#101827";
 
-  // obstacles
-  ctx.fillStyle="#ef5b5b";
-  for(const o of obstacles)ctx.fillRect(o.x,o.y,o.w,o.h);
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
 
-  ctx.fillStyle="white";ctx.font="22px Arial";
-  ctx.fillText("Score: "+Math.floor(score/10),20,35);
-  ctx.fillText("MOVE: "+c,20,65);
 
-  if(gameOver){
-    ctx.fillStyle="rgba(0,0,0,.65)";ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle="white";ctx.textAlign="center";
-    ctx.font="48px Arial";ctx.fillText("GAME OVER",canvas.width/2,190);
-    ctx.font="22px Arial";ctx.fillText("Press SPACE to restart",canvas.width/2,235);
-    ctx.textAlign="left";
-  }
+    // GROUND
+    ctx.fillStyle="#263244";
+
+    ctx.fillRect(
+        0,
+        410,
+        canvas.width,
+        40
+    );
+
+
+    // ROAD MARKINGS
+    ctx.strokeStyle="#53647e";
+
+    ctx.lineWidth=4;
+
+    for(let x=0;x<canvas.width;x+=70){
+
+        ctx.beginPath();
+
+        ctx.moveTo(x,430);
+
+        ctx.lineTo(x+35,430);
+
+        ctx.stroke();
+
+    }
+
+
+    // PLAYER
+    ctx.fillStyle="#35d07f";
+
+    ctx.fillRect(
+
+        player.x,
+        player.y,
+        player.width,
+        player.height
+
+    );
+
+
+    ctx.beginPath();
+
+    ctx.arc(
+
+        player.x+player.width/2,
+        player.y-15,
+        18,
+        0,
+        Math.PI*2
+
+    );
+
+    ctx.fill();
+
+
+    // OBSTACLES
+    ctx.fillStyle="#ef5b5b";
+
+    for(const obstacle of obstacles){
+
+        ctx.fillRect(
+
+            obstacle.x,
+            obstacle.y,
+            obstacle.width,
+            obstacle.height
+
+        );
+
+    }
+
+
+    // SCORE
+    ctx.fillStyle="white";
+
+    ctx.font="22px Arial";
+
+    ctx.fillText(
+        "Score: "+Math.floor(score/10),
+        20,
+        35
+    );
+
+
+    // CURRENT COMMAND
+    ctx.fillText(
+        "MOVE: "+getCommand(),
+        20,
+        65
+    );
+
+
+    // GAME OVER
+    if(gameOver){
+
+        ctx.fillStyle="rgba(0,0,0,.7)";
+
+        ctx.fillRect(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+        ctx.fillStyle="white";
+
+        ctx.textAlign="center";
+
+        ctx.font="48px Arial";
+
+        ctx.fillText(
+            "GAME OVER",
+            canvas.width/2,
+            200
+        );
+
+
+        ctx.font="22px Arial";
+
+        ctx.fillText(
+            "Press SPACE to restart",
+            canvas.width/2,
+            240
+        );
+
+
+        ctx.textAlign="left";
+
+    }
+
 }
-function loop(){update();draw();requestAnimationFrame(loop);}
-addEventListener("keydown",e=>{if(e.code==="Space"&&gameOver)reset();});
+
+
+window.addEventListener("keydown",function(e){
+
+    if(e.code==="Space" && gameOver){
+
+        resetGame();
+
+    }
+
+});
+
+
+// =============================
+// GAME LOOP
+// =============================
+
+function loop(){
+
+    update();
+
+    draw();
+
+    requestAnimationFrame(loop);
+
+}
+
 loop();
+
 </script>
+
 </body>
 </html>
