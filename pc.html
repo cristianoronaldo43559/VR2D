@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Camera Runner PC</title>
+<style>
+body{margin:0;background:#080b12;color:white;font-family:Arial;text-align:center}
+.wrap{max-width:900px;margin:auto;padding:18px}
+#game{width:100%;max-width:850px;border-radius:18px;background:#151b27;display:block;margin:15px auto}
+#code{font-size:24px;font-weight:bold;letter-spacing:3px;background:#18213b;padding:10px;border-radius:10px;display:inline-block}
+#status{margin:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🏃 Camera Runner</h1>
+<div>Your phone connection code:</div>
+<div id="code">CONNECTING...</div>
+<div id="status">Waiting for phone...</div>
+<canvas id="game" width="850" height="450"></canvas>
+<p>Keyboard fallback: ← → to move, ↑ to jump, ↓ to crouch</p>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
+const status=document.getElementById("status");
+const codeEl=document.getElementById("code");
+
+const peer=new Peer("runner-"+Math.random().toString(36).slice(2,8));
+let conn=null, command="CENTER";
+peer.on("open",id=>{
+  codeEl.textContent=id;
+  status.textContent="Open the phone page and enter this code.";
+});
+peer.on("connection",c=>{
+  conn=c;
+  status.textContent="✅ Phone connected!";
+  conn.on("data",data=>{command=data;});
+  conn.on("close",()=>status.textContent="Phone disconnected.");
+});
+
+const keys={};
+addEventListener("keydown",e=>keys[e.key]=true);
+addEventListener("keyup",e=>keys[e.key]=false);
+
+const player={x:400,y:350,w:42,h:60,vy:0,onGround:true};
+let obstacles=[],score=0,speed=5,spawn=0,gameOver=false;
+
+function currentCommand(){
+  if(keys.ArrowLeft)return"LEFT";
+  if(keys.ArrowRight)return"RIGHT";
+  if(keys.ArrowUp)return"JUMP";
+  if(keys.ArrowDown)return"CROUCH";
+  return command;
+}
+function reset(){
+  player.x=400;player.y=350;player.vy=0;player.onGround=true;
+  obstacles=[];score=0;speed=5;spawn=0;gameOver=false;command="CENTER";
+}
+function jump(){
+  if(player.onGround){player.vy=-13;player.onGround=false;}
+}
+function update(){
+  if(gameOver)return;
+  const c=currentCommand();
+  if(c==="LEFT")player.x-=7;
+  if(c==="RIGHT")player.x+=7;
+  if(c==="JUMP")jump();
+
+  player.x=Math.max(20,Math.min(canvas.width-player.w-20,player.x));
+
+  player.vy+=0.65;player.y+=player.vy;
+  if(player.y>=350){player.y=350;player.vy=0;player.onGround=true;}
+
+  spawn--;
+  if(spawn<=0){
+    obstacles.push({
+      x:canvas.width+20,
+      y:370,
+      w:38+Math.random()*20,
+      h:60,
+      type:Math.random()<0.5?"block":"low"
+    });
+    spawn=65+Math.random()*55;
+  }
+
+  for(const o of obstacles)o.x-=speed;
+  obstacles=obstacles.filter(o=>o.x>-100);
+
+  for(const o of obstacles){
+    let ph=player.h, py=player.y;
+    // crouch lowers hitbox
+    if(c==="CROUCH"){ph=35;py=375;}
+    if(player.x<o.x+o.w && player.x+player.w>o.x &&
+       py<o.y+o.h && py+ph>o.y){
+      gameOver=true;
+    }
+  }
+
+  score++;
+  speed=Math.min(10,5+score/1200);
+}
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // sky
+  ctx.fillStyle="#101827";ctx.fillRect(0,0,canvas.width,canvas.height);
+  // ground
+  ctx.fillStyle="#263244";ctx.fillRect(0,410,canvas.width,40);
+
+  // road lines
+  ctx.strokeStyle="#53647e";ctx.lineWidth=4;
+  for(let x=0;x<canvas.width;x+=70){
+    ctx.beginPath();ctx.moveTo(x,430);ctx.lineTo(x+35,430);ctx.stroke();
+  }
+
+  // player
+  const c=currentCommand();
+  ctx.fillStyle="#35d07f";
+  if(c==="CROUCH"){
+    ctx.fillRect(player.x,375,50,35);
+    ctx.beginPath();ctx.arc(player.x+35,370,15,0,Math.PI*2);ctx.fill();
+  }else{
+    ctx.fillRect(player.x,player.y,player.w,player.h);
+    ctx.beginPath();ctx.arc(player.x+player.w/2,player.y-12,18,0,Math.PI*2);ctx.fill();
+  }
+
+  // obstacles
+  ctx.fillStyle="#ef5b5b";
+  for(const o of obstacles)ctx.fillRect(o.x,o.y,o.w,o.h);
+
+  ctx.fillStyle="white";ctx.font="22px Arial";
+  ctx.fillText("Score: "+Math.floor(score/10),20,35);
+  ctx.fillText("MOVE: "+c,20,65);
+
+  if(gameOver){
+    ctx.fillStyle="rgba(0,0,0,.65)";ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle="white";ctx.textAlign="center";
+    ctx.font="48px Arial";ctx.fillText("GAME OVER",canvas.width/2,190);
+    ctx.font="22px Arial";ctx.fillText("Press SPACE to restart",canvas.width/2,235);
+    ctx.textAlign="left";
+  }
+}
+function loop(){update();draw();requestAnimationFrame(loop);}
+addEventListener("keydown",e=>{if(e.code==="Space"&&gameOver)reset();});
+loop();
+</script>
+</body>
+</html>
