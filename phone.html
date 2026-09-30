@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Phone Motion Controller</title>
+<style>
+body{margin:0;background:#0b1020;color:white;font-family:Arial;text-align:center}
+.wrap{max-width:700px;margin:auto;padding:20px}
+input,button{font-size:18px;padding:12px;margin:6px;border-radius:10px;border:0}
+button{cursor:pointer;background:#35d07f;color:#06130b;font-weight:bold}
+video{width:100%;max-width:600px;border-radius:16px;margin-top:15px;background:#111}
+#status{padding:12px;margin:10px 0;border-radius:10px;background:#18213b}
+#move{font-size:30px;font-weight:bold;margin:12px}
+small{color:#aeb8d0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>📱 Motion Controller</h1>
+<p>Enter the PC's connection code.</p>
+<input id="pcId" placeholder="PC code">
+<button id="connect">Connect</button>
+<div id="status">Not connected</div>
+<div id="move">WAITING</div>
+<video id="video" autoplay playsinline muted></video>
+<small>Stand where the camera can see your full body. Move left/right, jump, or crouch.</small>
+</div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+
+<script>
+const video=document.getElementById("video");
+const status=document.getElementById("status");
+const moveEl=document.getElementById("move");
+let conn=null, lastCommand="CENTER", lastSent=0;
+let baselineY=null, lastY=null, lastTime=performance.now();
+let cooldown=0;
+
+function setStatus(t){status.textContent=t;}
+
+document.getElementById("connect").onclick=()=>{
+  const id=document.getElementById("pcId").value.trim();
+  if(!id){setStatus("Enter the PC code first.");return;}
+  conn=window._peer.connect(id);
+  conn.on("open",()=>setStatus("✅ Connected to PC"));
+  conn.on("close",()=>setStatus("Connection closed"));
+  conn.on("error",e=>setStatus("Connection error"));
+};
+
+const peerId="phone-"+Math.random().toString(36).slice(2,8);
+window._peer=new Peer(peerId);
+window._peer.on("open",id=>setStatus("Phone ready. PC code needed."));
+window._peer.on("error",()=>setStatus("Peer connection error"));
+
+function send(cmd){
+  const now=performance.now();
+  if(cmd===lastCommand && now-lastSent<120)return;
+  if(conn && conn.open){conn.send(cmd);lastCommand=cmd;lastSent=now;}
+  moveEl.textContent=cmd;
+}
+
+const pose=new Pose({
+  locateFile:(file)=>`https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+});
+pose.setOptions({
+  modelComplexity:0,
+  smoothLandmarks:true,
+  enableSegmentation:false,
+  minDetectionConfidence:0.5,
+  minTrackingConfidence:0.5
+});
+
+pose.onResults(results=>{
+  const lm=results.poseLandmarks;
+  if(!lm)return;
+
+  const nose=lm[0], leftShoulder=lm[11], rightShoulder=lm[12];
+  const leftHip=lm[23], rightHip=lm[24];
+  if(!nose||!leftShoulder||!rightShoulder||!leftHip||!rightHip)return;
+
+  const shoulderX=(leftShoulder.x+rightShoulder.x)/2;
+  const hipY=(leftHip.y+rightHip.y)/2;
+  const shoulderY=(leftShoulder.y+rightShoulder.y)/2;
+  const now=performance.now();
+
+  if(baselineY===null){baselineY=hipY;lastY=hipY;lastTime=now;return;}
+
+  // Slowly adapt baseline while standing.
+  const delta=hipY-lastY;
+  if(Math.abs(delta)<0.012) baselineY=baselineY*0.98+hipY*0.02;
+
+  const nowMs=performance.now();
+  if(nowMs>cooldown){
+    // Jump: hips move upward quickly from the standing baseline.
+    if(hipY < baselineY-0.07 && delta < -0.015){
+      send("JUMP"); cooldown=nowMs+500;
+    }
+    // Crouch/sit: hips move noticeably downward.
+    else if(hipY > baselineY+0.10){
+      send("CROUCH"); cooldown=nowMs+450;
+    }
+    else if(shoulderX<0.40) send("LEFT");
+    else if(shoulderX>0.60) send("RIGHT");
+    else send("CENTER");
+  }
+
+  lastY=hipY; lastTime=now;
+});
+
+const camera=new Camera(video,{
+  onFrame:async()=>{await pose.send({image:video});},
+  width:640,height:480
+});
+
+navigator.mediaDevices.getUserMedia({video:{facingMode:"user"},audio:false})
+.then(stream=>{
+  video.srcObject=stream;
+  camera.start();
+  setStatus("Camera running. Connect to the PC.");
+})
+.catch(()=>setStatus("Camera blocked. Allow camera permission and reload."));
+</script>
+</body>
+</html>
